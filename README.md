@@ -9,6 +9,7 @@ A comprehensive dbt project for transforming Airbnb listing, host, and review da
 - [Quick Start](#quick-start)
 - [Supported Warehouses](#supported-warehouses)
 - [Documentation](#documentation)
+- [Sources and Freshness](#sources-and-freshness)
 - [Common Commands](#common-commands)
 - [Testing](#testing)
 - [Dependencies](#dependencies)
@@ -166,6 +167,115 @@ A complete project inventory is available at [docs/PROJECT_INVENTORY.txt](docs/P
 - Test coverage
 - Macro documentation
 - Connection mapping details
+
+## 📊 Sources and Freshness
+
+### What are Sources?
+
+Sources in dbt represent external data tables that your dbt project depends on but doesn't create or manage. They're defined in YAML files and allow you to:
+- Document external data dependencies
+- Test source data quality
+- Monitor data freshness
+- Build lineage graphs that show where your data comes from
+
+### Sources in This Project
+
+This project defines sources in `models/sources.yml`:
+
+**Source Name:** `airbnb`  
+**Source Schema:** `raw` (configured in your warehouse)
+
+**Source Tables:**
+1. **listings** (identifier: `raw_listings`)
+   - Column-level tests on `room_type` and `price`
+   
+2. **hosts** (identifier: `raw_hosts`)
+   - No freshness rules defined
+   
+3. **reviews** (identifier: `raw_reviews`)
+   - **Freshness monitoring enabled** (see below)
+
+### How Freshness Works
+
+Freshness monitoring in dbt checks when source data was last updated to ensure your pipelines are working with current data. It helps you:
+- Detect stale data pipelines
+- Identify upstream data loading issues
+- Set up alerts for data freshness violations
+
+**How it works:**
+1. dbt queries the `loaded_at_field` (timestamp column) in your source table
+2. Compares the most recent timestamp to the current time
+3. Warns or errors if data is older than specified thresholds
+
+### Freshness Implementation in This Project
+
+The `reviews` source table has freshness monitoring configured in `models/sources.yml`:
+
+```yaml
+- name: reviews
+  identifier: raw_reviews
+  config:
+    loaded_at_field: date          # Column that tracks when data was loaded
+    freshness:
+      warn_after: {count: 1, period: hour}    # Warn if data is > 1 hour old
+      # error_after: {count: 24, period: hour}  # Error if > 24 hours (commented out)
+```
+
+**Configuration Details:**
+- **`loaded_at_field: date`** - The column in `raw_reviews` that contains the timestamp of when each record was loaded
+- **`warn_after`** - Issues a warning if the most recent data is older than 1 hour
+- **`error_after`** - Would error if data is older than 24 hours (currently commented out)
+
+**Available Periods:**
+- `minute`, `hour`, `day`, `week`, `month`
+
+### Checking Freshness
+
+Run freshness checks with:
+
+```bash
+# Check freshness for all sources
+dbt source freshness
+
+# Check freshness for a specific source
+dbt source freshness --select source:airbnb
+
+# Check freshness for a specific table
+dbt source freshness --select source:airbnb.reviews
+```
+
+**Output Example:**
+```
+Found 1 source, 3 tables, 1 freshness check
+Pass: reviews [warn after 1 hour] (0 hours old)
+```
+
+### Source Files Location
+
+- **Source definitions:** `models/sources.yml`
+- **Source documentation:** See `docs/PROJECT_INVENTORY.txt` for complete source inventory
+
+### Adding Freshness to Other Sources
+
+To add freshness monitoring to other sources, update `models/sources.yml`:
+
+```yaml
+- name: hosts
+  identifier: raw_hosts
+  config:
+    loaded_at_field: updated_at    # Use the timestamp column in your table
+    freshness:
+      warn_after: {count: 6, period: hour}
+      error_after: {count: 24, period: hour}
+```
+
+**Best Practices:**
+- Use a column that reliably tracks when data was last updated
+- Set `warn_after` to catch issues early
+- Set `error_after` to fail builds if data is too stale
+- Document freshness expectations in your source YAML
+
+For more information, see the [dbt Sources documentation](https://docs.getdbt.com/docs/build/sources).
 
 ## 🔧 Common Commands
 
