@@ -2,7 +2,7 @@
 
 A comprehensive dbt project for transforming Airbnb listing, host, and review data into a dimensional data model. This project demonstrates best practices for data transformation, testing, documentation, and multi-warehouse compatibility.
 
-## 📋 Table of Contents
+## Table of Contents
 
 - [Overview](#overview)
 - [Project Structure](#project-structure)
@@ -16,18 +16,21 @@ A comprehensive dbt project for transforming Airbnb listing, host, and review da
 - [Resources](#resources)
 - [Contributing](#contributing)
 
-## 🎯 Overview
+## Overview
 
-This dbt project transforms raw Airbnb data into a clean, tested, and documented dimensional model. It includes:
+This dbt project transforms raw Airbnb data into a clean, tested, and documented dimensional model. The project includes 9 models organized into source, dimension, fact, and mart layers, with comprehensive data tests using dbt's built-in tests and dbt_expectations.
 
-- **9 models** organized into source, dimension, fact, and mart layers
-- **Comprehensive data tests** using dbt's built-in tests and dbt_expectations
-- **Documentation** with descriptions, docs blocks, and exposures
-- **Multi-warehouse support** for PostgreSQL, SQL Server, Snowflake, and Databricks
-- **Snapshots** for tracking slowly changing dimensions
-- **Seeds** for reference data (full moon dates)
+**Key Features:**
+- 9 models organized into source, dimension, fact, and mart layers
+- Comprehensive data tests using dbt's built-in tests and dbt_expectations
+- Documentation with descriptions, docs blocks, and exposures
+- Multi-warehouse support for PostgreSQL, SQL Server, Snowflake, and Databricks
+- Snapshots for tracking slowly changing dimensions
+- Seeds for reference data (full moon dates)
 
 ### Data Model
+
+The project follows a dimensional modeling approach with the following structure:
 
 ```
 sources (raw_hosts, raw_listings, raw_reviews)
@@ -38,7 +41,9 @@ sources (raw_hosts, raw_listings, raw_reviews)
             └─> mart_fullmoon_reviews (business mart)
 ```
 
-## 📁 Project Structure
+## Project Structure
+
+The project is organized into standard dbt directories:
 
 ```
 airbnb_dbt/
@@ -62,19 +67,22 @@ airbnb_dbt/
 └── README.md         # This file
 ```
 
-## 🚀 Quick Start
+## Quick Start
 
 ### Prerequisites
 
-- Python 3.8 or higher
+Before getting started, make sure you have:
+- Python 3.8 or higher installed
 - Access to a supported data warehouse (PostgreSQL, SQL Server, Snowflake, or Databricks)
 - Warehouse credentials and connection details
 
 ### Installation
 
+Follow these steps to set up the project:
+
 1. **Clone this repository:**
    ```bash
-   git clone <your-repo-url>
+   git clone https://github.com/surcar97/Airbnb_DBT.git
    cd airbnb_dbt
    ```
 
@@ -85,6 +93,8 @@ airbnb_dbt/
    ```
 
 3. **Install dbt Core and your adapter:**
+   
+   Choose the adapter that matches your warehouse:
    ```bash
    # For PostgreSQL
    pip install dbt-postgres
@@ -124,29 +134,30 @@ airbnb_dbt/
 
 For detailed installation instructions, see [docs/INSTALLATION.md](docs/INSTALLATION.md).
 
-## 🗄️ Supported Warehouses
+## Supported Warehouses
 
-This project supports four major data warehouses:
+This project supports four major data warehouses. Connection templates with detailed comments are available in `profiles_templates/profiles.yml`.
 
 | Warehouse | Adapter Package | Documentation |
 |-----------|----------------|---------------|
-| **PostgreSQL** | `dbt-postgres` | [dbt Postgres Setup](https://docs.getdbt.com/docs/core/connect-data-platform/postgres-setup) |
-| **SQL Server** | `dbt-sqlserver` | [dbt SQL Server Setup](https://docs.getdbt.com/docs/core/connect-data-platform/sqlserver-setup) |
-| **Snowflake** | `dbt-snowflake` | [dbt Snowflake Setup](https://docs.getdbt.com/docs/core/connect-data-platform/snowflake-setup) |
-| **Databricks** | `dbt-databricks` | [dbt Databricks Setup](https://docs.getdbt.com/docs/core/connect-data-platform/databricks-setup) |
-
-Connection templates with detailed comments are available in `profiles_templates/profiles.yml`.
+| PostgreSQL | `dbt-postgres` | [dbt Postgres Setup](https://docs.getdbt.com/docs/core/connect-data-platform/postgres-setup) |
+| SQL Server | `dbt-sqlserver` | [dbt SQL Server Setup](https://docs.getdbt.com/docs/core/connect-data-platform/sqlserver-setup) |
+| Snowflake | `dbt-snowflake` | [dbt Snowflake Setup](https://docs.getdbt.com/docs/core/connect-data-platform/snowflake-setup) |
+| Databricks | `dbt-databricks` | [dbt Databricks Setup](https://docs.getdbt.com/docs/core/connect-data-platform/databricks-setup) |
 
 ### Warehouse-Specific Notes
 
-**Snowflake (Original):** This project was originally developed for Snowflake. Some SQL functions may need adaptation for other warehouses:
+This project was originally developed for Snowflake. Some SQL functions may need adaptation for other warehouses:
+
 - `NVL()` → Use `COALESCE()` for PostgreSQL/Databricks
 - `DATEADD()` → Use warehouse-specific date functions
 - `TO_DATE()` → Use warehouse-specific casting
 
-## 📚 Documentation
+## Documentation
 
 ### Generate Documentation Site
+
+Generate and view the project documentation:
 
 ```bash
 dbt docs generate
@@ -168,7 +179,7 @@ A complete project inventory is available at [docs/PROJECT_INVENTORY.txt](docs/P
 - Macro documentation
 - Connection mapping details
 
-## 📊 Sources and Freshness
+## Sources and Freshness
 
 ### What are Sources?
 
@@ -193,7 +204,7 @@ This project defines sources in `models/sources.yml`:
    - No freshness rules defined
    
 3. **reviews** (identifier: `raw_reviews`)
-   - **Freshness monitoring enabled** (see below)
+   - Freshness monitoring enabled (see below)
 
 ### How Freshness Works
 
@@ -277,41 +288,55 @@ To add freshness monitoring to other sources, update `models/sources.yml`:
 
 For more information, see the [dbt Sources documentation](https://docs.getdbt.com/docs/build/sources).
 
-## 🔧 Common Commands
+## Common Commands
 
+Here are the most commonly used dbt commands for this project:
+
+**Connection and setup:**
 ```bash
-# Connection and setup
 dbt debug                    # Test connection and configuration
 dbt deps                     # Install dbt packages
+```
 
-# Data operations
+**Data operations:**
+```bash
 dbt seed                     # Load seed files
 dbt run                      # Build all models
 dbt run --select dim_*       # Build specific models
 dbt build                    # Run models and tests together
+```
 
-# Source freshness
+**Source freshness:**
+```bash
 dbt source freshness         # Check freshness for all sources
 dbt source freshness --select source:airbnb  # Check specific source
 dbt source freshness --select source:airbnb.reviews  # Check specific table
+```
 
-# Testing
+**Testing:**
+```bash
 dbt test                     # Run all tests
 dbt test --select dim_listings_cleansed  # Test specific model
+```
 
-# Documentation
+**Documentation:**
+```bash
 dbt docs generate            # Generate documentation artifacts
 dbt docs serve               # Serve documentation site
+```
 
-# Snapshots
+**Snapshots:**
+```bash
 dbt snapshot                 # Run snapshots
+```
 
-# Compilation
+**Compilation:**
+```bash
 dbt compile                  # Compile SQL without running
 dbt show <model_name>        # Show compiled SQL for a model
 ```
 
-## 🧪 Testing
+## Testing
 
 This project includes comprehensive data quality tests:
 
@@ -323,7 +348,7 @@ This project includes comprehensive data quality tests:
 
 Test failures are stored in the `_test_failures` schema (configurable in `dbt_project.yml`).
 
-## 📦 Dependencies
+## Dependencies
 
 This project uses the following dbt packages (defined in `packages.yml`):
 
@@ -332,7 +357,7 @@ This project uses the following dbt packages (defined in `packages.yml`):
 
 Install with: `dbt deps`
 
-## 🔗 Resources
+## Resources
 
 ### Official dbt Documentation
 
@@ -356,7 +381,7 @@ Install with: `dbt deps`
 - [dbt_utils](https://github.com/dbt-labs/dbt-utils)
 - [dbt_expectations](https://github.com/calogica/dbt-expectations)
 
-## 🤝 Contributing
+## Contributing
 
 Contributions are welcome! Please ensure:
 - All tests pass (`dbt test`)
@@ -367,4 +392,3 @@ Contributions are welcome! Please ensure:
 ---
 
 **Questions or Issues?** Check the [INSTALLATION.md](docs/INSTALLATION.md) for troubleshooting or refer to the official dbt documentation.
-
