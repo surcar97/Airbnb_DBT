@@ -1,0 +1,273 @@
+# ============================================================================
+# DBT PROFILES.YML TEMPLATE - MULTI-WAREHOUSE CONFIGURATION
+# ============================================================================
+# This file contains example profiles for four data warehouses:
+# - PostgreSQL
+# - SQL Server
+# - Snowflake
+# - Databricks
+#
+# USAGE INSTRUCTIONS:
+# 1. Copy this file to ~/.dbt/profiles.yml (or %USERPROFILE%\.dbt\profiles.yml on Windows)
+# 2. Uncomment and configure ONE profile that matches your target warehouse
+# 3. Set all environment variables referenced in the selected profile
+# 4. Update the 'profile' field in dbt_project.yml to match the profile name
+#
+# SECURITY NOTE:
+# - NEVER commit actual credentials to version control
+# - Use environment variables for all sensitive values
+# - Keep your actual profiles.yml in ~/.dbt/ (not in the project directory)
+#
+# Official dbt documentation:
+# - Profiles: https://docs.getdbt.com/docs/core/connect-data-platform/connection-profiles
+# - PostgreSQL: https://docs.getdbt.com/docs/core/connect-data-platform/postgres-setup
+# - SQL Server: https://docs.getdbt.com/docs/core/connect-data-platform/sqlserver-setup
+# - Snowflake: https://docs.getdbt.com/docs/core/connect-data-platform/snowflake-setup
+# - Databricks: https://docs.getdbt.com/docs/core/connect-data-platform/databricks-setup
+# ============================================================================
+
+# ============================================================================
+# POSTGRESQL CONFIGURATION
+# ============================================================================
+# Adapter package: dbt-postgres
+# Install: pip install dbt-postgres
+# Documentation: https://docs.getdbt.com/docs/core/connect-data-platform/postgres-setup
+# ============================================================================
+airbnb:
+  target: dev
+  outputs:
+    dev:
+      type: postgres
+      # Database hostname or IP address
+      # Example: "localhost", "db.example.com", "192.168.1.100"
+      host: "{{ env_var('DBT_POSTGRES_HOST') }}"
+      
+      # Database port number (default: 5432)
+      # Must be an integer, use | int filter if reading from env var as string
+      port: "{{ env_var('DBT_POSTGRES_PORT') | int }}"
+      
+      # Database username for authentication
+      # Example: "dbt_user", "postgres"
+      user: "{{ env_var('DBT_POSTGRES_USER') }}"
+      
+      # Database password for authentication
+      # NEVER hardcode passwords - always use environment variables
+      password: "{{ env_var('DBT_POSTGRES_PASSWORD') }}"
+      
+      # Database name to connect to
+      # Example: "airbnb", "analytics_db"
+      dbname: "{{ env_var('DBT_POSTGRES_DBNAME') }}"
+      
+      # Target schema where dbt will create models
+      # Models will be created as: {dbname}.{schema}.{model_name}
+      # Example: "dev", "analytics", "dbt_schema"
+      schema: "{{ env_var('DBT_POSTGRES_SCHEMA', 'dev') }}"
+      
+      # Number of parallel threads to use for model execution
+      # Higher values = faster but more resource intensive
+      # Recommended: 4-8 for most use cases
+      threads: "{{ env_var('DBT_POSTGRES_THREADS', '4') | int }}"
+      
+      # Optional: Connection timeout in seconds (default: 10)
+      # connect_timeout: 10
+      
+      # Optional: Keep connections alive (default: false)
+      # keepalives_idle: 0
+      
+      # Optional: SSL mode (disable, allow, prefer, require, verify-ca, verify-full)
+      # sslmode: "prefer"
+
+# ============================================================================
+# SQL SERVER CONFIGURATION
+# ============================================================================
+# Adapter package: dbt-sqlserver
+# Install: pip install dbt-sqlserver
+# Documentation: https://docs.getdbt.com/docs/core/connect-data-platform/sqlserver-setup
+# ============================================================================
+# airbnb:
+#   target: dev
+#   outputs:
+#     dev:
+#       type: sqlserver
+#       
+#       # ODBC Driver name - must match an installed driver on your system
+#       # Common values:
+#       #   - "ODBC Driver 17 for SQL Server"
+#       #   - "ODBC Driver 18 for SQL Server"
+#       #   - "SQL Server Native Client 11.0"
+#       # Check installed drivers: odbcinst -q -d (Linux/Mac) or ODBC Data Sources (Windows)
+#       driver: "{{ env_var('DBT_SQLSERVER_DRIVER', 'ODBC Driver 17 for SQL Server') }}"
+#       
+#       # SQL Server hostname, IP address, or instance name
+#       # Examples: "localhost", "server.example.com", "localhost\\SQLEXPRESS"
+#       server: "{{ env_var('DBT_SQLSERVER_SERVER') }}"
+#       
+#       # SQL Server port number (default: 1433)
+#       # For named instances, port may be included in server name instead
+#       port: "{{ env_var('DBT_SQLSERVER_PORT', '1433') | int }}"
+#       
+#       # Database username for authentication
+#       # Example: "dbt_user", "sa"
+#       user: "{{ env_var('DBT_SQLSERVER_USER') }}"
+#       
+#       # Database password for authentication
+#       # NEVER hardcode passwords - always use environment variables
+#       password: "{{ env_var('DBT_SQLSERVER_PASSWORD') }}"
+#       
+#       # Database name to connect to
+#       # Example: "airbnb", "AnalyticsDB"
+#       database: "{{ env_var('DBT_SQLSERVER_DATABASE') }}"
+#       
+#       # Target schema where dbt will create models (default: "dbo")
+#       # Models will be created as: {database}.{schema}.{model_name}
+#       # Example: "dev", "analytics", "dbt_schema"
+#       schema: "{{ env_var('DBT_SQLSERVER_SCHEMA', 'dev') }}"
+#       
+#       # Number of parallel threads to use for model execution
+#       # Recommended: 4-8 for most use cases
+#       threads: "{{ env_var('DBT_SQLSERVER_THREADS', '4') | int }}"
+#       
+#       # Optional: Use Windows Authentication instead of username/password
+#       # Set to true to use integrated security (Windows auth)
+#       # windows_login: false
+#       
+#       # Optional: Trust server certificate (for development only)
+#       # trust_cert: false
+
+# ============================================================================
+# SNOWFLAKE CONFIGURATION
+# ============================================================================
+# Adapter package: dbt-snowflake
+# Install: pip install dbt-snowflake
+# Documentation: https://docs.getdbt.com/docs/core/connect-data-platform/snowflake-setup
+# ============================================================================
+# airbnb:
+#   target: dev
+#   outputs:
+#     dev:
+#       type: snowflake
+#       
+#       # Snowflake account identifier
+#       # Format: {account_locator} or {account_locator}.{region}
+#       # Examples: "xy12345", "xy12345.us-east-1", "xy12345.us-east-2.aws"
+#       # Find in Snowflake URL: https://{account}.snowflakecomputing.com
+#       account: "{{ env_var('DBT_SNOWFLAKE_ACCOUNT') }}"
+#       
+#       # Snowflake username for authentication
+#       # Example: "dbt_user", "ANALYTICS_USER"
+#       user: "{{ env_var('DBT_SNOWFLAKE_USER') }}"
+#       
+#       # Authentication method - choose ONE:
+#       # 
+#       # Option 1: Password authentication
+#       password: "{{ env_var('DBT_SNOWFLAKE_PASSWORD') }}"
+#       
+#       # Option 2: Key pair authentication (more secure, recommended for production)
+#       # private_key: "{{ env_var('DBT_SNOWFLAKE_PRIVATE_KEY') }}"
+#       # private_key_passphrase: "{{ env_var('DBT_SNOWFLAKE_PRIVATE_KEY_PASSPHRASE', '') }}"
+#       
+#       # Option 3: OAuth (for dbt Cloud or SSO)
+#       # authenticator: oauth
+#       # token: "{{ env_var('DBT_SNOWFLAKE_OAUTH_TOKEN') }}"
+#       
+#       # Role to use for this connection
+#       # Must have privileges to create objects in the specified database/schema
+#       # Example: "TRANSFORM", "ANALYTICS_ROLE", "ACCOUNTADMIN"
+#       role: "{{ env_var('DBT_SNOWFLAKE_ROLE', 'TRANSFORM') }}"
+#       
+#       # Database name to connect to
+#       # Example: "AIRBNB", "ANALYTICS_DB"
+#       database: "{{ env_var('DBT_SNOWFLAKE_DATABASE') }}"
+#       
+#       # Warehouse to use for queries (required for compute)
+#       # Example: "COMPUTE_WH", "ANALYTICS_WH"
+#       warehouse: "{{ env_var('DBT_SNOWFLAKE_WAREHOUSE') }}"
+#       
+#       # Target schema where dbt will create models
+#       # Models will be created as: {database}.{schema}.{model_name}
+#       # Example: "DEV", "ANALYTICS", "DBT_SCHEMA"
+#       schema: "{{ env_var('DBT_SNOWFLAKE_SCHEMA', 'DEV') }}"
+#       
+#       # Number of parallel threads to use for model execution
+#       # Each thread uses one connection from the connection pool
+#       # Recommended: 4-8 for most use cases, up to warehouse max connections
+#       threads: "{{ env_var('DBT_SNOWFLAKE_THREADS', '4') | int }}"
+#       
+#       # Optional: Query tag for tracking dbt queries in Snowflake
+#       # query_tag: "dbt_airbnb"
+#       
+#       # Optional: Client session keep alive (default: true)
+#       # client_session_keep_alive: true
+
+# ============================================================================
+# DATABRICKS CONFIGURATION
+# ============================================================================
+# Adapter package: dbt-databricks
+# Install: pip install dbt-databricks
+# Documentation: https://docs.getdbt.com/docs/core/connect-data-platform/databricks-setup
+# ============================================================================
+# airbnb:
+#   target: dev
+#   outputs:
+#     dev:
+#       type: databricks
+#       
+#       # Databricks workspace hostname
+#       # Format: {workspace-id}.cloud.databricks.com
+#       # Find in Databricks URL: https://{hostname}
+#       # Example: "1234567890123456.7.gcp.databricks.com"
+#       host: "{{ env_var('DBT_DATABRICKS_HOST') }}"
+#       
+#       # HTTP path for the SQL endpoint or cluster
+#       # For SQL warehouses: /sql/1.0/warehouses/{warehouse-id}
+#       # For clusters: /sql/protocolv1/o/{org-id}/{cluster-id}
+#       # Find in Databricks UI: SQL Warehouses or Clusters -> Connection Details
+#       # Example: "/sql/1.0/warehouses/abc123def456"
+#       http_path: "{{ env_var('DBT_DATABRICKS_HTTP_PATH') }}"
+#       
+#       # Authentication token (Personal Access Token or OAuth token)
+#       # Generate in Databricks: User Settings -> Access Tokens
+#       # NEVER hardcode tokens - always use environment variables
+#       token: "{{ env_var('DBT_DATABRICKS_TOKEN') }}"
+#       
+#       # Target schema (database) where dbt will create models
+#       # In Databricks, "schema" and "database" are synonymous
+#       # Models will be created as: {catalog}.{schema}.{model_name} or {schema}.{model_name}
+#       # Example: "dev", "analytics", "dbt_schema"
+#       schema: "{{ env_var('DBT_DATABRICKS_SCHEMA', 'dev') }}"
+#       
+#       # Optional: Catalog name (for Unity Catalog, Databricks' data governance layer)
+#       # If not specified, uses the default catalog
+#       # Example: "main", "hive_metastore", "production_catalog"
+#       # catalog: "{{ env_var('DBT_DATABRICKS_CATALOG', 'main') }}"
+#       
+#       # Number of parallel threads to use for model execution
+#       # Recommended: 4-8 for most use cases
+#       threads: "{{ env_var('DBT_DATABRICKS_THREADS', '4') | int }}"
+#       
+#       # Optional: Connection timeout in seconds (default: 10)
+#       # connect_timeout: 10
+#       
+#       # Optional: Retry on connection errors (default: true)
+#       # retry_all: true
+
+# ============================================================================
+# NOTES ON MULTIPLE TARGETS/ENVIRONMENTS
+# ============================================================================
+# You can define multiple targets (dev, prod, staging) within the same profile:
+#
+# airbnb:
+#   target: dev  # Default target (change with --target flag or DBT_TARGET env var)
+#   outputs:
+#     dev:
+#       type: postgres
+#       host: "{{ env_var('DBT_POSTGRES_HOST_DEV') }}"
+#       # ... other dev config ...
+#     prod:
+#       type: postgres
+#       host: "{{ env_var('DBT_POSTGRES_HOST_PROD') }}"
+#       # ... other prod config ...
+#
+# Switch targets: dbt run --target prod
+# ============================================================================
+

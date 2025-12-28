@@ -1,0 +1,76 @@
+# ============================================================================
+# DBT PROJECT .GITIGNORE
+# Based on dbt best practices and official recommendations
+# Documentation: https://docs.getdbt.com/docs/get-started/getting-started/using-git
+# ============================================================================
+
+# Environment variables and secrets
+.env
+.env.local
+.env.*.local
+
+# dbt profiles (contains credentials - should be in ~/.dbt/profiles.yml)
+# Note: profiles_templates/profiles.yml is a template and should be committed
+profiles.yml
+*.profiles.yml
+!profiles_templates/profiles.yml
+
+# dbt build artifacts
+target/
+# Keep target/ directory structure but ignore contents
+target/**/*
+!target/.gitkeep
+
+# dbt packages (installed dependencies)
+dbt_packages/
+# Keep dbt_packages/ directory structure but ignore contents
+dbt_packages/**/*
+!dbt_packages/.gitkeep
+
+# Python virtual environment
+venv/
+env/
+ENV/
+.venv/
+
+# Python cache
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+
+# IDE and editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Logs
+*.log
+logs/
+
+# OS files
+Thumbs.db
+desktop.ini
+
+# Jupyter Notebook checkpoints
+.ipynb_checkpoints
+
+# Distribution / packaging
+dist/
+build/
+*.egg-info/
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Temporary files
+*.tmp
+*.temp
+.cache/
+

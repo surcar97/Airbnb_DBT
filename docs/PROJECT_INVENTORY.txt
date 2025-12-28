@@ -1,0 +1,513 @@
+================================================================================
+                    AIRBNB DBT PROJECT - COMPLETE INVENTORY
+================================================================================
+Generated: 2025-01-XX
+Project Source: https://github.com/nordquant/complete-dbt-bootcamp-zero-to-hero/tree/main/airbnb
+
+================================================================================
+1. PROJECT OVERVIEW
+================================================================================
+
+Project Name: airbnb
+Version: 1.0.0
+Profile Name: airbnb
+Target Schema/Database: Configured via profiles.yml (default: DEV schema in AIRBNB database)
+
+Project Paths Configuration:
+  - model-paths: ["models"]
+  - analysis-paths: ["analyses"]
+  - test-paths: ["tests"]
+  - seed-paths: ["seeds"]
+  - macro-paths: ["macros"]
+  - snapshot-paths: ["snapshots"]
+  - asset-paths: ["assets"]
+
+Clean Targets:
+  - target/
+  - dbt_packages/
+
+Project-Level Configuration:
+  - Default materialization: view (for all models)
+  - Dim models: materialized as table
+  - Src models: materialized as ephemeral
+  - Grants: select permissions granted to ["transform", "reporter"] roles
+  - Post-hook: Inserts audit log entry after each model run
+  - On-run-start: Creates audit_log table if not exists
+  - Data tests: store_failures = true, failures stored in _test_failures schema
+
+Original Adapter Assumption: Snowflake
+  - Original profiles.yml configured for Snowflake
+  - Uses Snowflake-specific functions (NVL, DATEADD, etc.)
+  - Private key authentication configured
+
+================================================================================
+2. MODELS INVENTORY
+================================================================================
+
+Total Models: 9
+
+--- SOURCE LAYER (src/) - Materialized: ephemeral ---
+
+1. src_hosts (models/src/src_hosts.sql)
+   - Materialization: ephemeral (project-level config)
+   - Purpose: Extract and rename columns from raw hosts source
+   - Columns: host_id, host_name, is_superhost, created_at, updated_at
+   - Depends on: source('airbnb', 'hosts')
+
+2. src_listings (models/src/src_listings.sql)
+   - Materialization: ephemeral (project-level config)
+   - Purpose: Extract and rename columns from raw listings source
+   - Columns: listing_id, listing_url, listing_name, room_type, minimum_nights, 
+             host_id, price_str, created_at, updated_at
+   - Depends on: source('airbnb', 'listings')
+
+3. src_reviews (models/src/src_reviews.sql)
+   - Materialization: ephemeral (project-level config)
+   - Purpose: Extract and rename columns from raw reviews source
+   - Columns: listing_id, review_date, reviewer_name, review_text, review_sentiment
+   - Depends on: source('airbnb', 'reviews')
+
+--- DIMENSION LAYER (dim/) - Materialized: table ---
+
+4. dim_hosts_cleansed (models/dim/dim_hosts_cleansed.sql)
+   - Materialization: view (overrides project-level table config)
+   - Purpose: Cleansed host dimension with null handling
+   - Columns: host_id (PK), host_name, is_superhost, created_at, updated_at
+   - Config: contract enforced = true (strict schema enforcement)
+   - Depends on: ref('src_hosts')
+   - Business Logic: NVL(host_name, 'Anonymous') for null names
+
+5. dim_listings_cleansed (models/dim/dim_listings_cleansed.sql)
+   - Materialization: view (overrides project-level table config)
+   - Purpose: Cleansed listings dimension with price conversion and minimum_nights logic
+   - Columns: listing_id (PK), listing_name, room_type, minimum_nights, host_id, 
+             price (numeric), created_at, updated_at
+   - Depends on: ref('src_listings')
+   - Business Logic: 
+     - Converts price_str (string with $) to numeric price
+     - Sets minimum_nights to 1 if 0
+   - Tests: minimum_row_count (1000 rows, error severity)
+
+6. dim_listings_w_hosts (models/dim/dim_listings_w_hosts.sql)
+   - Materialization: table (project-level config)
+   - Purpose: Denormalized dimension combining listings and hosts
+   - Columns: listing_id, listing_name, room_type, minimum_nights, price, host_id,
+             host_name, host_is_superhost, created_at, updated_at
+   - Depends on: ref('dim_listings_cleansed'), ref('dim_hosts_cleansed')
+   - Business Logic: LEFT JOIN hosts, GREATEST for updated_at
+
+--- FACT LAYER (fct/) - Materialized: view (default) ---
+
+7. fct_reviews (models/fct/fct_reviews.sql)
+   - Materialization: incremental
+   - Purpose: Fact table for reviews with surrogate key generation
+   - Columns: review_id (surrogate key), listing_id, review_date, reviewer_name,
+             review_text, review_sentiment
+   - Config: on_schema_change = 'fail'
+   - Depends on: ref('src_reviews')
+   - Business Logic:
+     - Generates surrogate key using dbt_utils.generate_surrogate_key
+     - Filters out null review_text
+     - Incremental logic: supports date range or max date filtering
+     - Variables: start_date, end_date (optional)
+
+--- MART LAYER (mart/) - Materialized: table (default) ---
+
+8. mart_fullmoon_reviews (models/mart/mart_fullmoon_reviews.sql)
+   - Materialization: table
+   - Purpose: Business mart combining reviews with full moon dates
+   - Columns: All fct_reviews columns + is_full_moon (flag)
+   - Depends on: ref('fct_reviews'), ref('seed_full_moon_dates')
+   - Business Logic:
+     - LEFT JOIN with seed_full_moon_dates
+     - Flags reviews as 'full moon' if review_date = full_moon_date + 1 day
+     - Uses DATEADD function (Snowflake-specific, may need adapter-specific syntax)
+
+Model Dependency Graph:
+  sources (raw_hosts, raw_listings, raw_reviews)
+    └─> src_hosts, src_listings, src_reviews (ephemeral)
+         └─> dim_hosts_cleansed, dim_listings_cleansed (views)
+              └─> dim_listings_w_hosts (table)
+         └─> fct_reviews (incremental table)
+              └─> mart_fullmoon_reviews (table, also uses seed_full_moon_dates)
+
+================================================================================
+3. SOURCES INVENTORY
+================================================================================
+
+Source Name: airbnb
+Source Schema: raw (configured in profiles.yml target schema or explicit)
+
+Source Tables:
+
+1. listings (identifier: raw_listings)
+   - Columns with tests:
+     * room_type: dbt_expectations.expect_column_distinct_count_to_equal (value: 4)
+     * price: dbt_expectations.expect_column_values_to_match_regex 
+             (pattern: "^\\$[0-9][0-9\\.]+$")
+
+2. hosts (identifier: raw_hosts)
+   - No column-level tests defined
+   - Used by: src_hosts model, snapshots
+
+3. reviews (identifier: raw_reviews)
+   - Config: loaded_at_field = date
+   - Freshness rules:
+     * warn_after: {count: 1, period: hour}
+     * error_after: commented out (would be 24 hours)
+   - Used by: src_reviews model
+
+================================================================================
+4. TESTS INVENTORY
+================================================================================
+
+--- GENERIC TESTS (models/schema.yml, models/mart/unit_tests.yml) ---
+
+Model-Level Tests:
+  - dim_listings_cleansed:
+      * minimum_row_count: min_row_count=1000, severity=error
+  - dim_listings_w_hosts:
+      * dbt_expectations.expect_table_row_count_to_equal_other_table:
+          compare_model: source('airbnb', 'listings')
+
+Column-Level Tests:
+  - dim_listings_cleansed:
+      * listing_id: unique, not_null
+      * host_id: not_null, relationships(to: dim_hosts_cleansed.host_id)
+      * room_type: accepted_values(['Entire home/apt', 'Private room', 'Shared room', 'Hotel room'])
+      * minimum_nights: positive_values (custom generic test)
+  - dim_hosts_cleansed:
+      * host_id: not_null, unique
+      * host_name: not_null
+      * is_superhost: accepted_values(['t', 'f'])
+  - dim_listings_w_hosts:
+      * price: 
+          - dbt_expectations.expect_column_values_to_be_of_type(column_type: number)
+          - dbt_expectations.expect_column_quantile_values_to_be_between(quantile: 0.99, min: 50, max: 500)
+          - dbt_expectations.expect_column_max_to_be_between(max_value: 5000, severity: warn)
+  - fct_reviews:
+      * listing_id: relationships(to: dim_listings_cleansed.listing_id)
+      * reviewer_name: not_null
+      * review_sentiment: accepted_values(['positive', 'neutral', 'negative'])
+
+--- SINGULAR TESTS (tests/) ---
+
+1. consistent_created_at.sql
+   - Location: tests/consistent_created_at.sql
+   - Purpose: Ensures listings created_at is not after review_date
+   - Tests: dim_listings_cleansed.created_at >= fct_reviews.review_date
+   - Type: Data quality test
+
+2. dim_listings_minimum_nights.sql
+   - Location: tests/dim_listings_minimum_nights.sql
+   - Purpose: Validates minimum_nights >= 1 (business rule)
+   - Tests: dim_listings_cleansed.minimum_nights < 1
+   - Returns: First 10 violations
+
+--- CUSTOM GENERIC TESTS (tests/generic/) ---
+
+1. positive_values.sql
+   - Location: tests/generic/positive_values.sql
+   - Purpose: Tests that column values are > 0
+   - Usage: positive_values(model, column_name)
+   - Used by: dim_listings_cleansed.minimum_nights
+
+2. minimum_row_count.sql
+   - Location: tests/generic/minimum_row_count.sql
+   - Purpose: Tests that model has at least min_row_count rows
+   - Usage: minimum_row_count(model, min_row_count)
+   - Default severity: warn
+   - Used by: dim_listings_cleansed (with severity: error)
+
+--- UNIT TESTS (models/mart/unit_tests.yml) ---
+
+1. unittest_fullmoon_matcher
+   - Model: mart_fullmoon_reviews
+   - Purpose: Validates full moon date matching logic
+   - Test Data:
+     * fct_reviews: 3 rows with review_dates (2025-01-13, 2025-01-14, 2025-01-15)
+     * seed_full_moon_dates: 1 row (full_moon_date: 2025-01-14)
+   - Expected: 
+     * 2025-01-13: "not full moon"
+     * 2025-01-14: "not full moon" (same day as full moon)
+     * 2025-01-15: "full moon" (day after full moon)
+
+================================================================================
+5. MACROS OVERVIEW
+================================================================================
+
+Total Macros: 5
+
+1. learn_variables (macros/variables.sql)
+   - Purpose: Educational macro demonstrating dbt variables
+   - Functionality:
+     * Logs Jinja variable
+     * Logs dbt variable (var('user_name'))
+     * Conditional logging based on var('in_test')
+
+2. learn_logging (macros/logging.sql)
+   - Purpose: Educational macro demonstrating dbt logging
+   - Functionality: Shows different logging syntaxes (log, log with info=True, comments)
+
+3. no_empty_strings (macros/no_empty_strings.sql)
+   - Purpose: Generates WHERE clause to filter empty strings
+   - Functionality: Iterates through string columns and adds IS NOT NULL AND <> '' conditions
+   - Usage: Can be used in model WHERE clauses
+
+4. select_positive_values (macros/select_positive_values.sql)
+   - Purpose: Selects rows where column has positive values
+   - Functionality: SELECT * FROM model WHERE column_name > 0
+   - Usage: Can be used in models or analyses
+
+5. variable_test (macros/variable_test.sql)
+   - Purpose: Not reviewed in detail (file exists but content not fully analyzed)
+
+================================================================================
+6. PACKAGES/DEPENDENCIES
+================================================================================
+
+Packages (packages.yml):
+
+1. dbt-labs/dbt_utils
+   - Version: 1.3.1
+   - Purpose: Utility macros for common dbt operations
+   - Usage in project:
+     * generate_surrogate_key() in fct_reviews model
+
+2. metaplane/dbt_expectations
+   - Version: 0.10.9
+   - Purpose: Great Expectations-style data quality tests
+   - Usage in project:
+     * expect_column_distinct_count_to_equal (sources.yml)
+     * expect_column_values_to_match_regex (sources.yml)
+     * expect_table_row_count_to_equal_other_table (schema.yml)
+     * expect_column_values_to_be_of_type (schema.yml)
+     * expect_column_quantile_values_to_be_between (schema.yml)
+     * expect_column_max_to_be_between (schema.yml)
+
+Installation: Run `dbt deps` to install packages
+
+================================================================================
+7. DOCUMENTATION ASSETS
+================================================================================
+
+--- DOCS BLOCKS ---
+
+1. dim_listing_cleansed__minimum_nights (models/docs.md)
+   - Purpose: Documents minimum_nights column business logic
+   - Content: Explains that old listings may have 0, algorithm updates to 1
+
+2. __overview__ (models/overview.md)
+   - Purpose: Project overview documentation
+   - Content: Welcome message and input schema diagram reference
+   - Assets: References assets/input_schema.png
+
+--- SCHEMA DOCUMENTATION (models/schema.yml) ---
+
+Model Descriptions:
+  - dim_listings_cleansed: "Cleansed table which contains Airbnb listings."
+  - dim_hosts_cleansed: "Cleansed table for the Airbnb hosts"
+
+Column Descriptions:
+  - dim_listings_cleansed:
+      * listing_id: "Primary key for the listing"
+      * host_id: "The hosts's id. References the host table."
+      * room_type: "Type of the apartment / room"
+      * minimum_nights: Uses docs block reference
+  - dim_hosts_cleansed:
+      * host_id: "The id of the host. This is the primary key."
+      * host_name: "The name of the host"
+      * is_superhost: "Defines whether the hosts is a superhost."
+
+--- EXPOSURES (models/dashboards.yml) ---
+
+1. executive_dashboard
+   - Type: dashboard
+   - Maturity: low
+   - URL: Preset/Superset dashboard URL
+   - Description: "Executive Dashboard about Airbnb listings and hosts"
+   - Depends on: dim_listings_w_hosts, mart_fullmoon_reviews
+   - Owner: Zoltan C. Toth (dbtstudent@gmail.com)
+
+--- MACRO DOCUMENTATION (models/test_docs.yml) ---
+
+1. minimum_row_count macro
+   - Description: "Test that a model has at least a minimum number of rows."
+   - Arguments documented: model, min_row_count
+
+================================================================================
+8. SEEDS INVENTORY
+================================================================================
+
+1. seed_full_moon_dates (seeds/seed_full_moon_dates.csv)
+   - Purpose: Reference data for full moon dates
+   - Format: CSV with header "full_moon_date"
+   - Usage: Used by mart_fullmoon_reviews model
+   - Load: Run `dbt seed` to load into warehouse
+
+================================================================================
+9. SNAPSHOTS INVENTORY
+================================================================================
+
+Total Snapshots: 2
+
+1. scd_raw_hosts (snapshots/raw_hosts_snapshot.yml)
+   - Relation: source('airbnb', 'hosts')
+   - Strategy: timestamp
+   - Unique key: id
+   - Updated at: updated_at
+   - Hard deletes: invalidate
+
+2. scd_raw_listings (snapshots/raw_listings_snapshot.yml)
+   - Relation: source('airbnb', 'hosts')
+   - Strategy: timestamp
+   - Unique key: id
+   - Updated at: updated_at
+   - Hard deletes: invalidate
+
+Purpose: Track Slowly Changing Dimensions (SCD Type 2) for raw source tables
+
+================================================================================
+10. ANALYSES INVENTORY
+================================================================================
+
+1. full_moon_no_sleep.sql (analyses/full_moon_no_sleep.sql)
+   - Purpose: Analysis query exploring full moon review patterns
+   - Functionality: Groups reviews by is_full_moon and review_sentiment
+   - Depends on: mart_fullmoon_reviews
+   - Note: Analyses are not compiled into the DAG, used for ad-hoc exploration
+
+================================================================================
+11. CONNECTION MAPPING
+================================================================================
+
+Original Configuration:
+  - Adapter: Snowflake
+  - Profile: airbnb
+  - Target: dev
+  - Database: AIRBNB
+  - Schema: DEV
+  - Warehouse: COMPUTE_WH
+  - Authentication: Private key (encrypted)
+  - Role: TRANSFORM
+  - Threads: 1
+
+Connection Behavior by Warehouse:
+
+--- SNOWFLAKE (Original) ---
+  - Database: AIRBNB (or from env var)
+  - Schema: DEV (or from env var)
+  - Models create relations in: AIRBNB.DEV schema
+  - Sources expected in: AIRBNB.RAW schema (or configured schema)
+  - Warehouse-specific functions used:
+    * NVL() - null handling
+    * DATEADD() - date arithmetic
+    * TO_DATE() - date conversion
+
+--- POSTGRES ---
+  - Database: Configured via dbname
+  - Schema: Configured via schema
+  - Models create relations in: {database}.{schema}
+  - Sources expected in: {database}.raw schema
+  - Required adaptations:
+    * NVL() -> COALESCE()
+    * DATEADD() -> DATE + INTERVAL
+    * TO_DATE() -> CAST or ::date
+
+--- SQL SERVER ---
+  - Database: Configured via database
+  - Schema: Configured via schema (default: dbo)
+  - Models create relations in: {database}.{schema}
+  - Sources expected in: {database}.raw schema
+  - Required adaptations:
+    * NVL() -> ISNULL() or COALESCE()
+    * DATEADD() -> DATEADD() (same syntax)
+    * TO_DATE() -> CAST or CONVERT()
+
+--- DATABRICKS ---
+  - Catalog: Configured via catalog (optional)
+  - Schema: Configured via schema
+  - Models create relations in: {catalog}.{schema} or {schema}
+  - Sources expected in: {catalog}.raw or raw schema
+  - Required adaptations:
+    * NVL() -> COALESCE() or NVL() (if available)
+    * DATEADD() -> DATEADD() or date_add()
+    * TO_DATE() -> TO_DATE() or CAST
+
+Model-to-Relation Mapping:
+  - All models use {{ this }} for self-reference
+  - Models use {{ ref() }} for dependencies
+  - Models use {{ source() }} for source tables
+  - Target schema determined by profiles.yml target.schema
+  - Database determined by profiles.yml target.database (or default)
+
+Audit Log Table:
+  - Created in: {{ target.schema }}.audit_log
+  - Columns: model_name (STRING), run_timestamp (TIMESTAMP)
+  - Populated via post-hook after each model run
+
+Test Failures Storage:
+  - Schema: _test_failures (configured in dbt_project.yml)
+  - Tables created automatically when tests fail (if store_failures: true)
+
+================================================================================
+12. PROJECT STRUCTURE SUMMARY
+================================================================================
+
+airbnb_dbt/
+├── analyses/
+│   └── full_moon_no_sleep.sql
+├── assets/
+│   └── input_schema.png
+├── macros/
+│   ├── logging.sql
+│   ├── no_empty_strings.sql
+│   ├── select_positive_values.sql
+│   ├── variable_test.sql
+│   └── variables.sql
+├── models/
+│   ├── dashboards.yml (exposures)
+│   ├── docs.md (docs blocks)
+│   ├── overview.md (docs blocks)
+│   ├── schema.yml (model/column docs + tests)
+│   ├── sources.yml (source definitions)
+│   ├── test_docs.yml (macro docs)
+│   ├── dim/
+│   │   ├── dim_hosts_cleansed.sql
+│   │   ├── dim_listings_cleansed.sql
+│   │   └── dim_listings_w_hosts.sql
+│   ├── fct/
+│   │   └── fct_reviews.sql
+│   ├── mart/
+│   │   ├── mart_fullmoon_reviews.sql
+│   │   └── unit_tests.yml
+│   └── src/
+│       ├── src_hosts.sql
+│       ├── src_listings.sql
+│       └── src_reviews.sql
+├── seeds/
+│   └── seed_full_moon_dates.csv
+├── snapshots/
+│   ├── raw_hosts_snapshot.yml
+│   └── raw_listings_snapshot.yml
+├── tests/
+│   ├── consistent_created_at.sql
+│   ├── dim_listings_minimum_nights.sql
+│   └── generic/
+│       ├── minimum_row_count.sql
+│       └── positive_values.sql
+├── dbt_project.yml
+├── packages.yml
+└── profiles_templates/ (NEW - added for multi-warehouse support)
+    └── profiles.yml
+
+================================================================================
+END OF INVENTORY
+================================================================================
+
+Note: This inventory was generated through static analysis of project files.
+For runtime information (actual row counts, test results, etc.), run:
+  - dbt docs generate (creates manifest.json and catalog.json)
+  - dbt list --output json
+  - dbt show <model_name>
+

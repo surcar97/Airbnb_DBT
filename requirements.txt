@@ -1,0 +1,18 @@
+# dbt Core and Adapters
+# Install only the adapter for your target warehouse
+
+# PostgreSQL
+dbt-postgres>=1.6.0
+
+# SQL Server (uncomment if using SQL Server)
+# dbt-sqlserver>=1.6.0
+
+# Snowflake (uncomment if using Snowflake)
+# dbt-snowflake>=1.6.0
+
+# Databricks (uncomment if using Databricks)
+# dbt-databricks>=1.6.0
+
+# Optional: For loading .env files
+python-dotenv>=1.0.0
+
