@@ -237,17 +237,6 @@ Install with: `dbt deps`
 - [dbt_utils](https://github.com/dbt-labs/dbt-utils)
 - [dbt_expectations](https://github.com/calogica/dbt-expectations)
 
-## ⚠️ Important Notes
-
-- **Never commit credentials:** Use environment variables and keep `.env` in `.gitignore`
-- **Profiles location:** Keep `profiles.yml` in `~/.dbt/` (not in the project directory)
-- **Warehouse compatibility:** Some SQL may need adaptation for non-Snowflake warehouses
-- **Python version:** Requires Python 3.8+ (check with `python --version`)
-
-## 📝 License
-
-This project is based on the [complete-dbt-bootcamp-zero-to-hero](https://github.com/nordquant/complete-dbt-bootcamp-zero-to-hero) repository.
-
 ## 🤝 Contributing
 
 Contributions are welcome! Please ensure:
