@@ -4,16 +4,16 @@ A comprehensive dbt project for transforming Airbnb listing, host, and review da
 
 ## 📋 Table of Contents
 
-- [Overview](#-overview)
-- [Project Structure](#-project-structure)
-- [Quick Start](#-quick-start)
-- [Supported Warehouses](#-supported-warehouses)
-- [Documentation](#-documentation)
-- [Common Commands](#-common-commands)
-- [Testing](#-testing)
-- [Dependencies](#-dependencies)
-- [Resources](#-resources)
-- [Contributing](#-contributing)
+- [Overview](#overview)
+- [Project Structure](#project-structure)
+- [Quick Start](#quick-start)
+- [Supported Warehouses](#supported-warehouses)
+- [Documentation](#documentation)
+- [Common Commands](#common-commands)
+- [Testing](#testing)
+- [Dependencies](#dependencies)
+- [Resources](#resources)
+- [Contributing](#contributing)
 
 ## 🎯 Overview
 
