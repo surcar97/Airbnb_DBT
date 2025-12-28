@@ -290,6 +290,11 @@ dbt run                      # Build all models
 dbt run --select dim_*       # Build specific models
 dbt build                    # Run models and tests together
 
+# Source freshness
+dbt source freshness         # Check freshness for all sources
+dbt source freshness --select source:airbnb  # Check specific source
+dbt source freshness --select source:airbnb.reviews  # Check specific table
+
 # Testing
 dbt test                     # Run all tests
 dbt test --select dim_listings_cleansed  # Test specific model
